@@ -21,7 +21,7 @@ source("~/Desktop/CTT/Tools/data_tools/functions/localization.R")
 
 all_data <- load_data(infile, starttime = start_time)
 beep_data <- all_data[[1]][[1]]
-attr(beep_data$Time, "tzone") <- "EST"
+attr(beep_data$Time, "tzone") <- "America/New_York" #the advantage of using this timezone is it automatically adjusts for daylight savings
 beep_data <- beep_data[beep_data$Time > start_time,] #For HBSP
 
 nodes$NodeId <- toupper(nodes$NodeId)
@@ -91,7 +91,7 @@ locations <- cbind(locations, locations@coords)
 
 locations.recent <- subset(locations, freq > max(locations$freq) - 7*86400) ## note how I fixed this
 nodes_spatial <- nodes
-coordinates(nodes_spatial) <- 3:2
+coordinates(nodes_spatial) <- ~lng:lat #these are the column headers users are instructed to use to create the node file
 crs(nodes_spatial) <- CRS("+proj=longlat +datum=WGS84")
 
 my_locs <- locations
@@ -125,8 +125,8 @@ week_prev <- max(locations$freq) - 7*86400
 ph_basemap <- get_googlemap(center = c(lon = centerLon, lat = centerLat), zoom = 17, scale = 2, maptype = "satellite")
 for (t in tag_id){
   # if (tags$species[which(tags$TagId == t)] == 'SALS') {
-  #   lo <- '#ffb5de'
-  #   hi <- '#ff008c'
+     lo <- '#ffb5de' #need default values for these
+     hi <- '#ff008c'
   # } else{
   #   lo <- '#fffb01'
   #   hi <- '#ff0000'
