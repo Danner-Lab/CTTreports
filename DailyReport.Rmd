@@ -1,0 +1,154 @@
+---
+output: html_document
+---
+
+<!-- This Markdown file implements Dr. Jessica Gorzo's CTT data tools and visualizes the results of several analyses in a single report. -->
+
+```{r defaults, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r setup}
+library(raster)
+library(sp)
+library(rgdal)
+library(sf)
+library(ggplot2)
+library(geosphere)
+library(ggmap)
+library(RColorBrewer)
+source("**path to data_manager.R**")
+source("**path to localization.R**")
+# ^ edit to include paths to localization.R and data_manager.R
+
+all_data <- load_data(infile, starttime = start_time)
+beep_data <- all_data[[1]][[1]]
+beep_data <- beep_data[beep_data$Time > start_time,] 
+if(!is.null(end_time)) {beep_data <- beep_data[beep_data$Time < end_time,]}
+
+nodes$NodeId <- toupper(nodes$NodeId)
+beep_data <- beep_data[beep_data$NodeId %in% nodes$NodeId,]
+
+channel <- 3
+tag_id <- tags$TagId 
+beep_data <- beep_data[beep_data$TagId %in% tags$TagId,]
+attr(beep_data$Time, "tzone") <- "America/New_York"
+
+freq <- c("2 min", "3 min", "10 min")
+
+resampled <- advanced_resampled_stats(beeps = beep_data, node = nodes, freq = freq[1], tag_id = tag_id) 
+```
+
+---
+title: `r max(beep_data$Time)`
+author: "John Doe"
+---
+
+<!-- Note that due to the nature of ggplot2::facet_wrap, you may want to customize the width and 
+height parameters (and/or play with the ncol arg) for the following 2 snippets depending on the number of nodes/tags.-->
+
+## 1. Node RSSI Over Time
+
+```{r nodes, fig.width=14, fig.height=12}
+ggplot(data=resampled, aes(x=freq, y=TagRSSI_max, colour=NodeId)) +
+  geom_line(show.legend = FALSE) + facet_wrap(~ NodeId, ncol=4) + ylab("Max RSSI") + xlab("Date")
+```
+
+## 2. Tag RSSI Over Time
+
+```{r tags, fig.width=14, fig.height=8}
+ggplot(data=resampled, aes(x=freq, y=TagRSSI_max, colour=TagId)) +
+  geom_line(show.legend = FALSE) + facet_wrap(~ TagId, ncol=4) + ylab("Max RSSI") + xlab("Date")
+```
+
+
+```{r apikey}
+# Google API key required for basemaps
+# Restrict access to the following four APIs: Maps Static, Geocoding, Geolocation, Maps Embed
+ggmap::register_google('**insert API key here**')
+ph_basemap <- get_googlemap(center = c(lon = centerLon, lat = centerLat), zoom = 16, scale = 2, maptype = "satellite")
+```
+
+
+## 3. Node Locations
+
+```{r nodelocs}
+nodes$ceil <- as.factor(ceiling(as.numeric(rownames(nodes))/7))
+col_labs <- rep(brewer.pal(7, 'Set1'), each=length(unique(nodes$ceil)))[1:length(nodes$ceil)]
+shp_labs <- rep(15:(15 + length(unique(nodes$ceil)) - 1), 7)[1:length(nodes$ceil)]
+ggmap(ph_basemap) + 
+  geom_point(data = nodes, aes(x=lng, y=lat, color=NodeId, shape=NodeId)) +
+  scale_color_manual(name = 'NodeId', labels = nodes$NodeId,
+                     values = col_labs) +
+  scale_shape_manual(name = 'NodeId', labels = nodes$NodeId,
+                     values = shp_labs)
+```
+
+## 4. Locations by TagId (All Time)
+
+```{r locsetup}
+beep_data <- beep_data[beep_data$TagRSSI >= -95,]
+locations <- weighted_average(freq[2], beep_data, nodes, all_data[[2]][[1]], 0, tag_id)
+
+n <- 2
+locations <- locations[locations$unique_nodes > n,]
+locations <- cbind(locations, locations@coords)
+
+locations.recent <- subset(locations, freq > max(locations$freq) - 7*86400) ## note how I fixed this
+nodes_spatial <- nodes
+coordinates(nodes_spatial) <- ~lng:lat
+crs(nodes_spatial) <- CRS("+proj=longlat +datum=WGS84")
+
+my_locs <- locations
+my_locs.recent <- locations.recent
+
+locs <- st_as_sf(my_locs)
+locs.recent <- st_as_sf(my_locs.recent)
+my_nodes <- st_as_sf(nodes_spatial)
+locs$freq <- as.POSIXct(locs$freq)
+attr(locs$freq, "origin") <- "1970-01-01"
+```
+
+```{r locsalltime, fig.width=14, fig.height=12}
+ggplot() +
+  geom_sf(data = locs, aes(colour=freq), inherit.aes = FALSE) +
+  geom_sf(data = my_nodes) +
+  facet_wrap(~ TagId, ncol=4) + scale_color_datetime(low="#a4f5e1", high="#018060")
+```
+
+## 5. Recent Locations by TagId
+
+```{r recentlocs, fig.width=14, fig.height=12}
+ggplot() +
+  geom_sf(data = locs.recent, aes(colour=freq), inherit.aes = FALSE, show.legend = TRUE) +
+  geom_sf(data = my_nodes) +
+  facet_wrap(~ TagId, ncol=4) + scale_color_datetime(low="#a4f5e1", high="#018060")
+```
+
+```{r recentmaps}
+week_prev <- max(locations$freq) - 7*86400 
+ph_basemap <- get_googlemap(center = c(lon = centerLon, lat = centerLat), zoom = 17, scale = 2, maptype = "satellite")
+for (t in tag_id){
+#   if (tags$species[which(tags$TagId == t)] == 'SALS') {
+#     lo <- '#ffb5de'
+#     hi <- '#ff008c'
+#   } else if (tags$species[which(tags$TagId == t)] == 'SESP') {
+#     lo <- '#fffb01'
+#     hi <- '#ff0000'
+#   } else if (tags$species[which(tags$TagId == t)] == 'NESP') {
+#     lo <- '#ffedf3'
+#     hi <- '#d1495b'
+#   }
+  lo <- '#ffb5de'
+  hi <- '#ff008c'
+  pl <- ggmap(ph_basemap) +
+    geom_point(data=as.data.frame(my_locs.recent[my_locs.recent$TagId == t,]), aes(x=avg_x,y=avg_y, color = freq)) +
+    scale_color_datetime(limits=c(week_prev, NA), low=lo, high=hi) +
+    #ggtitle(sprintf('%s (%s)', t, tags$species[which(tags$TagId == t)])) +
+    ggtitle(t) +
+    theme(plot.title = element_text(hjust = 0.5))
+  print(pl)
+}
+```
+
+
