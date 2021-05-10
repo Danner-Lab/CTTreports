@@ -1,0 +1,115 @@
+---
+output: html_document
+---
+
+```{r defaults, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r setup}
+# vars specified: site_name, infile, tags, nodes, outpath, start_time, end_time, centerLon, centerLat, locs.path
+library(raster)
+library(sp)
+library(rgdal)
+library(sf)
+library(ggplot2)
+library(geosphere)
+library(ggmap) 
+source("**path to data_manager.R**")
+source("**path to localization.R**")
+# ^ edit to include paths to localization.R and data_manager.R
+
+all_data <- load_data(infile, starttime = start_time)
+beep_data <- all_data[[1]][[1]]
+beep_data <- beep_data[(beep_data$Time > start_time) & (beep_data$Time < end_time),] 
+
+nodes$NodeId <- toupper(nodes$NodeId)
+beep_data <- beep_data[beep_data$NodeId %in% nodes$NodeId,]
+
+tag_id <- tags$TagId
+beep_data <- beep_data[beep_data$TagId %in% tags$TagId,]
+attr(beep_data$Time, "tzone") <- "America/New_York"
+
+freq <- c("2 min", "3 min", "10 min")
+resampled <- advanced_resampled_stats(beeps = beep_data, node = nodes, freq = freq[1], tag_id = tag_id)
+```
+
+---
+title: `r paste('Recap -', site_name)`
+author: "Miles Buddy"
+---
+
+## 1. Node RSSI Over Time
+
+```{r nodes, fig.width=14, fig.height=12}
+ggplot(data=resampled, aes(x=freq, y=TagRSSI_max, colour=NodeId)) +
+  geom_line(show.legend = FALSE) + facet_wrap(~ NodeId, ncol=4) + ylab("Max RSSI") + xlab("Date")
+```
+
+## 2. Tag RSSI Over Time
+
+```{r tags, fig.width=14, fig.height=8}
+ggplot(data=resampled, aes(x=freq, y=TagRSSI_max, colour=TagId)) +
+  geom_line(show.legend = FALSE) + facet_wrap(~ TagId, ncol=4) + ylab("Max RSSI") + xlab("Date")
+```
+
+```{r apikey}
+# Google API key required for basemaps
+# Restrict access to the following four APIs: Maps Static, Geocoding, Geolocation, Maps Embed
+ggmap::register_google('**insert API key here**')
+ph_basemap <- get_googlemap(center = c(lon = centerLon, lat = centerLat), zoom = 16, scale = 2, maptype = "satellite")
+```
+
+
+## 3. Node Locations
+
+```{r nodelocs}
+nodes$ceil <- as.factor(ceiling(as.numeric(rownames(nodes))/7))
+col_labs <- rep(brewer.pal(7, 'Set1'), each=length(unique(nodes$ceil)))[1:length(nodes$ceil)]
+shp_labs <- rep(15:(15 + length(unique(nodes$ceil)) - 1), 7)[1:length(nodes$ceil)]
+ggmap(ph_basemap) + 
+  geom_point(data = nodes, aes(x=lng, y=lat, color=NodeId, shape=NodeId)) +
+  scale_color_manual(name = 'NodeId', labels = nodes$NodeId,
+                     values = col_labs) +
+  scale_shape_manual(name = 'NodeId', labels = nodes$NodeId,
+                     values = shp_labs)
+```
+
+## 4. Locations (All Time)
+```{r locsalltime}
+beep_data <- beep_data[beep_data$TagRSSI >= -95,]
+locations <- weighted_average(freq[2], beep_data, nodes, all_data[[2]][[1]], 0, tag_id)
+
+n <- 3
+locations <- locations[locations$unique_nodes > n,]
+locations <- cbind(locations, locations@coords)
+
+if(locsfile) {write.csv(locations, file = paste(outpath, '/', site_name, 'locs.csv', sep = ''))}
+
+nodes_spatial <- nodes
+coordinates(nodes_spatial) <- ~lng:lat
+crs(nodes_spatial) <- CRS("+proj=longlat +datum=WGS84")
+
+ph_basemap <- get_googlemap(center = c(lon = centerLon, lat = centerLat), zoom = 17, scale = 2, maptype = "satellite")
+
+for (t in tag_id){
+#   if (tags$species[which(tags$TagId == t)] == 'SALS') {
+#     lo <- '#ffb5de'
+#     hi <- '#ff008c'
+#   } else if (tags$species[which(tags$TagId == t)] == 'SESP') {
+#     lo <- '#fffb01'
+#     hi <- '#ff0000'
+#   } else if (tags$species[which(tags$TagId == t)] == 'NESP') {
+#     lo <- '#ffedf3'
+#     hi <- '#d1495b'
+#   }
+  lo <- '#ffb5de'
+  hi <- '#ff008c'
+  pl <- ggmap(ph_basemap) +
+    geom_point(data=as.data.frame(locations[locations$TagId == t,]), aes(x=avg_x,y=avg_y, color = freq)) +
+    scale_color_datetime(low=lo, high=hi) +
+    ggtitle(sprintf('%s (%s)', t, tags$species[which(tags$TagId == t)])) +
+    theme(plot.title = element_text(hjust = 0.5))
+  print(pl)
+}
+```
