@@ -94,8 +94,9 @@ Maps Static, Geocoding, Geolocation, Maps Embed. Edit line 68 to include your Go
 for indicating species ID by label or color are commented out. 
 
 
-## SiteRecap.Rmd contains the Markdown for Site Recaps. Output type, title, and author may be specified on lines 2, 38, and 39, respectively. The code chunks
-are as follows:
+## SiteRecap.Rmd 
+
+```SiteRecap.Rmd``` contains the Markdown for Site Recaps. Output type, title, and author may be specified on lines 2, 38, and 39, respectively. The code chunks are as follows:
 
 * ```defaults``` (line 8): Sets some defaults to prevent unwanted messages in the output. Do not edit.
 * ```setup``` (lines 10-34): Downloads raw data and prepares it for plotting. Lines 37 and 39 can be edited to change sampling interval.
