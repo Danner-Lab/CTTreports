@@ -41,8 +41,8 @@ FF.info <- list(
   tags = read.csv('~/Desktop/CTT/Tools/FF_tagsdeployed_2021.csv', as.is=TRUE, na.strings = c('NA', "")),
   nodes = read.csv('~/Desktop/CTT/Tools/FF_NodeLocs.csv', as.is=TRUE, na.strings=c("NA", "")),
   outpath = '~/Desktop/CTT/Output/FF',
-  start_time = as.POSIXct('2021-02-28 00:00:00', tz = 'EST'),
-  end_time = as.POSIXct('2021-03-31 08:00:00', tz = 'EST'), # optional
+  start_time = as.POSIXct('2021-02-28 00:00:00', tz = 'America/New_York'),
+  end_time = as.POSIXct('2021-03-31 08:00:00', tz = 'America/New_York'), # optional
   centerLon = -77.9615,
   centerLat = 33.8835
 )
@@ -66,8 +66,8 @@ RCR.info <- list(
   tags = read.csv("~/Desktop/CTT/Tools/Tags_RCR_2021.csv", as.is=TRUE, na.strings=c("NA", "")),
   nodes = read.csv('~/Desktop/CTT/Tools/RCR_Node_Locations_CTT.csv', as.is=TRUE, na.strings=c("NA", "")),
   outpath = '~/Desktop/CTT/Output/RCR',
-  start_time = as.POSIXct("2021-01-13 00:00:00", tz = "EST"),
-  end_time = as.POSIXct("2021-02-27 00:00:00", tz = "EST"),
+  start_time = as.POSIXct("2021-01-13 00:00:00", tz = "America/New_York"),
+  end_time = as.POSIXct("2021-02-27 00:00:00", tz = "America/New_York"),
   centerLon = -76.6369,
   centerLat = 34.7015
 )
