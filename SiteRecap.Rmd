@@ -108,7 +108,8 @@ for (t in tag_id){
   pl <- ggmap(ph_basemap) +
     geom_point(data=as.data.frame(locations[locations$TagId == t,]), aes(x=avg_x,y=avg_y, color = freq)) +
     scale_color_datetime(low=lo, high=hi) +
-    ggtitle(sprintf('%s (%s)', t, tags$species[which(tags$TagId == t)])) +
+    ggtitle(t) +
+    # ggtitle(sprintf('%s (%s)', t, tags$species[which(tags$TagId == t)])) +
     theme(plot.title = element_text(hjust = 0.5))
   print(pl)
 }
