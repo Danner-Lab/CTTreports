@@ -70,8 +70,7 @@ These are intended to be customized at the user's discretion. Plotting functions
 
 ## DailyReport.Rmd
 
-```DailyReport.Rmd``` contains the Markdown for Daily Reports. Code chunks are labelled and are used to prepare the data and print plots.
-
+```DailyReport.Rmd``` contains the Markdown for Daily Reports. This file is rendered by the function ```ctt_report```. It serves as documentation for how to use the plotting functions within a Markdown file, and creative liscense is encouraged. 
 
 
 
